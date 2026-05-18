@@ -1,0 +1,89 @@
+---
+description: Data privacy, GDPR compliance, and tool guidance for OneLake MCP interactions
+alwaysApply: true
+---
+
+# OneLake MCP — Data Privacy & GDPR Compliance
+
+This project connects to a Fabric OneLake containing Norwegian B2B customer data subject to GDPR and Norwegian privacy law.
+
+## Available MCP tools
+
+| Tool | Safe? | Use for |
+|---|---|---|
+| `get_active_config` | ✅ Always | Check active workspace and lakehouses |
+| `list_schemas` | ✅ Always | Discover schemas (includes context annotations) |
+| `list_tables` | ✅ Always | Discover Delta tables in a schema |
+| `get_table_schema` | ✅ Always | Column names and types (1h local cache) |
+| `get_table_stats` | ✅ Always | Row count, size, last modified |
+| `search_columns` | ✅ Always | Find columns by pattern + FK inference |
+| `compare_schemas` | ✅ Always | Align two tables for Silver/Gold merges |
+| `find_duplicate_candidates` | ✅ Always | Dedup key analysis — no data read |
+| `suggest_silver_transforms` | ✅ Always | Bronze → Silver transformation suggestions |
+| `get_data_model` | ✅ Always | Full workspace map with FK candidates |
+| `get_watermark_status` | ✅ Always | Ingestion status from watermark tables |
+| `validate_notebook` | ✅ Always | Validate column references in .py/.ipynb/.sql |
+| `sample_table` | ⚠️ Restricted | Only metadata tables; never gold.* or silver.* |
+
+## sample_table restrictions
+
+Never call `sample_table` on sensitive schemas:
+- `gold.*`, `silver.*` — blocked at server level in strict mode ❌
+- Any table whose columns contain: Name, Id, Email, Phone, Address, Number, SSN, Organisation ❌
+
+Safe targets: `zuora.ingest_watermarks`, `banqsoft._file_registry` (metadata/timestamps only).
+
+## Schema context
+
+| Schema | Layer | Description |
+|---|---|---|
+| `zuora.*` | Bronze | Zuora billing — source_system='zuora', company='Amili AS' |
+| `banqsoft.*` | Bronze | Banqsoft collection — company='Amili Collection AS' |
+| `businessnxt.*` | Bronze | BusinessNXT ERP data |
+| `GoogleSheets.*` | Bronze | Manual Google Sheets imports |
+| `silver.*` | Silver | Cleaned, conformed — has `_company` for multi-source joins |
+| `gold.*` | Gold | Reporting layer — surrogate keys on all dimensions |
+
+## Workflow guidance
+
+**Schema exploration:** Use `get_data_model` at session start → `list_tables` → `get_table_schema`
+
+**Cross-source merging (e.g. Dim_Client):** Use `compare_schemas` to align `zuora.account` vs `banqsoft.vParty`
+
+**Duplicate detection:** Use `find_duplicate_candidates` — never sample the table
+
+**Before uploading a notebook:** Use `validate_notebook` to catch column mismatches early
+
+**Ingestion health:** Use `get_watermark_status` before starting development
+
+## What is safe to present
+
+Column names and types ✅ | Row counts ✅ | Schema names ✅ | Timestamps from watermarks ✅ | File sizes ✅ | Dedup key names ✅
+
+## What is never safe to present
+
+Customer names, org numbers, account IDs, invoice IDs, financial amounts, or any value from a column containing Name/Id/Email/Phone/Address ❌
+
+## Code examples
+
+```python
+# ❌ BAD — reads real customer data
+rows = sample_table("Landing", "gold", "dim_client", 5)
+print(rows)
+
+# ✅ GOOD — schema + stats only
+schema = get_table_schema("Landing", "gold", "dim_client")
+stats = get_table_stats("Landing", "gold", "dim_client")
+
+# ✅ GOOD — merge key analysis without reading data
+candidates = find_duplicate_candidates("Landing", "zuora", "account")
+
+# ✅ GOOD — use placeholder IDs in all code
+df = df.filter(col("AccountId") == "XXXX")  # not a real ID
+```
+
+## GDPR reminders
+
+- Never suggest writing PII to logs, notebooks, or print statements
+- Never suggest copying or exporting raw customer data outside OneLake
+- Use placeholder values in all code examples: `AccountId = "XXXX"`, not a real ID
