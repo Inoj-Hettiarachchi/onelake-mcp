@@ -111,5 +111,6 @@ If a table cannot be read, tools return JSON with an `error` field instead of cr
 
 ## Further reading
 
+- **[DOCUMENTATION.md](DOCUMENTATION.md)** — complete reference (architecture, all tools, privacy, troubleshooting)
 - [SETUP.md](SETUP.md) — step-by-step setup (including Cursor-assisted install)
 - [setup.sh](setup.sh) — interactive setup script

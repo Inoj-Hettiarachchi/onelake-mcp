@@ -29,20 +29,32 @@ This project connects to a Fabric OneLake containing Norwegian B2B customer data
 
 Never call `sample_table` on sensitive schemas:
 - `gold.*`, `silver.*` — blocked at server level in strict mode ❌
+- All `Curated.*` schemas (dim_*/fact_*) — contain conformed customer data ❌
 - Any table whose columns contain: Name, Id, Email, Phone, Address, Number, SSN, Organisation ❌
 
 Safe targets: `zuora.ingest_watermarks`, `banqsoft._file_registry` (metadata/timestamps only).
 
 ## Schema context
 
-| Schema | Layer | Description |
-|---|---|---|
-| `zuora.*` | Bronze | Zuora billing — source_system='zuora', company='Amili AS' |
-| `banqsoft.*` | Bronze | Banqsoft collection — company='Amili Collection AS' |
-| `businessnxt.*` | Bronze | BusinessNXT ERP data |
-| `GoogleSheets.*` | Bronze | Manual Google Sheets imports |
-| `silver.*` | Silver | Cleaned, conformed — has `_company` for multi-source joins |
-| `gold.*` | Gold | Reporting layer — surrogate keys on all dimensions |
+| Lakehouse | Schema | Layer | Description |
+|---|---|---|---|
+| Landing | `zuora.*` | Bronze | Zuora billing — source_system='zuora', company='Amili AS' |
+| Landing | `banqsoft.*` | Bronze | Banqsoft collection — company='Amili Collection AS' |
+| Landing | `businessnxt.*` | Bronze | BusinessNXT ERP data |
+| Landing | `GoogleSheets.*` | Bronze | Manual Google Sheets imports |
+| Base | `BusinessNXT.*` | Bronze | BusinessNXT ERP data (Base layer) |
+| Base | `GoogleSheets.*` | Bronze | Manual Google Sheets imports (Base layer) |
+| Base | `Zuora.*` | Bronze | Zuora billing data (Base layer) |
+| Base | `dbo.*` | Bronze | Legacy schema |
+| Curated | `dim_client.*` | Gold | Client dimension |
+| Curated | `dim_company.*` | Gold | Company dimension |
+| Curated | `dim_customer.*` | Gold | Customer dimension |
+| Curated | `dim_date.*` | Gold | Date dimension |
+| Curated | `dim_product.*` | Gold | Product dimension |
+| Curated | `dim_subscription.*` | Gold | Subscription dimension |
+| Curated | `fact_invoiceitems.*` | Gold | Invoice items fact table |
+| Landing | `silver.*` | Silver | Cleaned, conformed — has `_company` for multi-source joins |
+| Landing | `gold.*` | Gold | Reporting layer — surrogate keys on all dimensions |
 
 ## Workflow guidance
 
